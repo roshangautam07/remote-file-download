@@ -35,8 +35,12 @@ async function downloadFile(url, outputPath,downloadId,abortController) {
     downloadProgress[downloadId] = { totalSize, downloadedSize, fileName };
 
     response.data.on('data', (chunk) => {
+      if (downloadProgress[downloadId]) {
+       
       downloadedSize += chunk.length;
+      console.log(downloadedSize)
       downloadProgress[downloadId].downloadedSize = downloadedSize;
+      }
     });
 
     response.data.pipe(writer);
@@ -51,6 +55,9 @@ async function downloadFile(url, outputPath,downloadId,abortController) {
       });
 
       writer.on('error', (err) => {
+        fs.unlink(outputPath, (unlinkErr) => {
+          if (unlinkErr) console.error(`Error deleting file: ${unlinkErr.message}`);
+        });
         reject(`Error downloading file: ${err.message}`);
         delete downloadProgress[downloadId]; 
         delete abortControllers[downloadId]; 
@@ -58,6 +65,9 @@ async function downloadFile(url, outputPath,downloadId,abortController) {
       });
     });
   } catch (error) {
+    fs.unlink(outputPath, (unlinkErr) => {
+      if (unlinkErr) console.error(`Error deleting file: ${unlinkErr.message}`);
+    });
     delete downloadProgress[downloadId]; 
     delete abortControllers[downloadId]; 
 
@@ -128,14 +138,23 @@ app.get('/cancel-download/:id', (req, res) => {
   const downloadId = req.params.id;
 
   const abortController = abortControllers[downloadId];
+  const progress = downloadProgress[downloadId];
+  const outputPath = path.resolve(__dirname, 'downloads', progress ? progress.fileName : '');
 
   if (!abortController) {
     return res.status(404).json({ message: 'No ongoing download to cancel for the provided URL' });
   }
 
-  abortController.abort();
-  delete abortControllers[downloadId]; 
-  delete downloadProgress[downloadId]; 
+  setTimeout(() => {
+    if (fs.existsSync(outputPath)) {
+      fs.unlink(outputPath, (unlinkErr) => {
+        if (unlinkErr) console.error(`Error deleting file: ${unlinkErr.message}`);
+      });
+    }
+
+    delete abortControllers[downloadId];
+    delete downloadProgress[downloadId];
+  }, 1000);
 
   return res.status(200).json({ message: `Download for ${downloadId} has been canceled` });
 });
