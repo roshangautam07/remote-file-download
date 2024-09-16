@@ -41,7 +41,7 @@ async function downloadFile(url, outputPath, downloadId, abortController) {
 
         downloadedSize += chunk.length;
         const { percentage } = progressBar(downloadProgress[downloadId]);
-        console.log(percentage, ' %')
+        // console.log(percentage, ' %')
 
         downloadProgress[downloadId].downloadedSize = downloadedSize;
       }
